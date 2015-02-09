@@ -12,10 +12,10 @@
  */
 
 struct TokenizerT_ {
-  char *newStr;
-  char ** arr;
-  int index;
-  int numTokens;
+  char *newStr;     // string to hold string with spaces
+  char ** arr;      // string array that holds identifiers and tokens in each entry
+  int index;        // used in TKGetNextToken to print an entry in arr
+  int numTokens;    // number of tokens in string
 };
 
 typedef struct TokenizerT_ TokenizerT;
@@ -35,6 +35,7 @@ void TKDestroy(TokenizerT * tk);
 char * TKGetNextToken(TokenizerT * tk);
 
 int check0tokens(char * str){
+  // return 0 if string has no tokens (error), 1 (at least 1 token) otherwise
   int i;
   int allSpaces = 0;
   for (i = 0; i < strlen(str); i++){
@@ -49,6 +50,7 @@ int check0tokens(char * str){
 }
 
 int getState(char c){
+	// return 0 for space, 1 for letter, 2 for number, 3 for operator
   if (isspace(c)){
     return 0;
   }
@@ -64,6 +66,7 @@ int getState(char c){
 }
 
 int hasDot(char * str, int j){
+	// return 1 if '.' char is found earlier in the current token, 0 otherwise
   int i;
   for (i = j; i >= 0; i--){
     if (str[i] == 'e' || str[i] == 'E'){
@@ -83,6 +86,7 @@ int hasDot(char * str, int j){
 }
 
 int has0x(char * str, int j){
+	// returns 1 if the sequence 0x is found
   int i;
   for (i = j; i >= 0; i--){
     /*
@@ -680,6 +684,7 @@ int isLetter(char c){
 }
 
 int isDigit(char c){
+	// return 1 if c is digit, 0 otherwise
   if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9'){
     return 1;
   }
@@ -687,6 +692,7 @@ int isDigit(char c){
 }
 
 int isOctal(char c){
+	// return 1 if c is 0-7, 0 otherwise
   if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7'){
     return 1;
   }
@@ -694,6 +700,7 @@ int isOctal(char c){
 }
 
 int isHex(char c){
+	// return 1 if c is 0-9, A-F, a-f, 0 otherwise
   if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9' || c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E' || c == 'F' || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'){
     return 1;
   }
@@ -701,6 +708,7 @@ int isHex(char c){
 }
 
 int isFloat(char c){
+	// return 1 if c is an appropriate float char, 0 otherwise
   if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9' || c == '.' || c == 'E' || c == 'e' || c == '+' || c == '-'){
     return 1;
   }
@@ -708,6 +716,7 @@ int isFloat(char c){
 }
 
 char * identify(char * token){
+	// identify token as operator name, word, float constant, decimal constant, octal constant, or hex constant
   int i;
   int allLets1 = 1;
   int allNums1 = 1;
@@ -933,9 +942,11 @@ char * identify(char * token){
 
 void TKDestroy( TokenizerT * tk ) {
   int i;
+  // free every entry in arr
   for (i = 0; i < tk->numTokens; i++){
     free(tk->arr[i]);
   }
+  // free arr variable name and free newStr
   free(tk->arr);
   free(tk->newStr);
 }
@@ -958,9 +969,11 @@ char *TKGetNextToken( TokenizerT * tk ) {
   strcpy(ret, "");
 //  printf("%d %d\n", tk->index, tk->numTokens);
   if (tk->index >= tk->numTokens){
+  	// return NULL exits while loop in main
     return NULL;
   }
 //  printf("ret %s\n", tk->arr[tk->index]);
+	// ret = indexth entry of array
   strcpy(ret, tk->arr[tk->index]);
   /*
   strcpy(ret, identify(tk->arr[tk->index]));
@@ -969,6 +982,7 @@ char *TKGetNextToken( TokenizerT * tk ) {
   strcat(ret, " \"");
   */
 
+	// increment index and return ret
   tk->index++;
   
   return ret;
@@ -988,26 +1002,32 @@ int main(int argc, char **argv) {
   int i;
   char * orig;
   if (argc != 2){
+  	// not 2 arguments, error
     fprintf(stderr, "usage: ./tokenizer \"String\"\n");
     exit(0);
   }
   orig = argv[1];
   if (check0tokens(orig) == 0){
+  	// string is entirely white space, no tokens, error
     fprintf(stderr, "String must contain at least 1 token\n");
     exit(0);
   }
   printf("orig %s\n", orig);
+  
+  // store tokens and identifers in arr member of TokenizerT * t
   TokenizerT * t = TKCreate(orig);
   for (i = 0; i < t->numTokens; i++){
     printf("%s\n",t->arr[i]);
   }
 //  printf("%s\n", t->newStr);
   char * charPtr = NULL;
+ 	// store strings from arr in charPtr and print charPtr each iteration and free charPtr
   while ((charPtr = TKGetNextToken(t)) != NULL){
 //    printf("%s %s\n", identify(charPtr), charPtr);
     printf("charPtr %s\n", charPtr);
     free(charPtr);
   }
+  // free dynamically allocated memory in arr and newStr members of t
   TKDestroy(t);
   return 0;
 }

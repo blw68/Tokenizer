@@ -1,4 +1,5 @@
 /*
+ * by Brian Wong and Nathan Miniovich
  * tokenizer.c
  */
 #include <stdio.h>
@@ -28,6 +29,7 @@ int isOctal(char c);
 int isHex(char c);
 char * identify(char * str);
 int hasDot(char * str, int j);
+int has0x(char * str, int j);
 TokenizerT * TKCreate(char * ts);
 void TKDestroy(TokenizerT * tk);
 char * TKGetNextToken(TokenizerT * tk);
@@ -67,15 +69,39 @@ int hasDot(char * str, int j){
     if (str[i] == 'e' || str[i] == 'E'){
       continue;
     }
-    /*
-    if ((i == j-1 )&& (str[i] == '.')){
-      return 0;
+    if (str[i] == '+' || str[i] == '-'){
+      continue;
     }
-    */
     if (str[i] == '.'){
       return 1;
     }
     if (isDigit(str[i]) == 0){
+      return 0;
+    }
+  }
+  return 0;
+}
+
+int has0x(char * str, int j){
+  int i;
+  for (i = j; i >= 0; i--){
+    /*
+    if (isHex(str[i]) == 0){
+        return 0;
+    }
+    */
+    if (str[i] == 'x' || str[i] == 'X'){
+      printf("found an x\n");
+      if (i != 0){
+        if (str[i-1] == '0'){
+          return 1;
+        }
+      }
+    }
+    if (str[i] == ' '){
+      return 0;
+    }
+    if (getState(str[i]) == 3){
       return 0;
     }
   }
@@ -99,8 +125,6 @@ int hasDot(char * str, int j){
 TokenizerT *TKCreate( char * ts ) {
   int i;
   int numEntries;
-//  char * newStr;
-//  newStr = malloc(sizeof(char) * 80);
   TokenizerT * t;
   t = malloc(sizeof(struct TokenizerT_));
   t->newStr = malloc(strlen(ts) * 2); 
@@ -116,26 +140,51 @@ TokenizerT *TKCreate( char * ts ) {
       temp[1] = 0;
       strcat(t->newStr, temp); 
     }
+    else if (getState(prev) == 1 && getState(ts[i]) == 1){
+      if (has0x(ts, i) == 1){
+        printf("is hex\n");
+        if (isHex(ts[i]) == 1){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else {
+          printf("add letter\n");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+      }
+    }
     else if (getState(prev) == 1 && getState(ts[i]) == 2){
       if (prev == 'e' || prev == 'E'){
-        if (hasDot(ts, i) == 1){
-            temp[0] = ts[i];
-            temp[1] = 0;
-            strcat(t->newStr, temp);
-            continue;
+        if (has0x(ts, i) == 1){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (hasDot(ts, i) == 1){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
         }
         else {
           strcat(t->newStr, " ");
           temp[0] = ts[i];
           temp[1] = 0;
           strcat(t->newStr, temp);
-          printf("added, ts[i] = %c\n", ts[i]);
-          continue;
         }
       }
-      if (prev == 'x' || prev == 'X'){
+      else if (prev == 'x' || prev == 'X'){
         if (i > 1){
           if (ts[i-2] == '0'){
+            printf("in here\n");
             temp[0] = ts[i];
             temp[1] = 0;
             strcat(t->newStr, temp);
@@ -148,6 +197,11 @@ TokenizerT *TKCreate( char * ts ) {
           strcat(t->newStr, temp); 
         }
       }
+      else if (has0x(ts, i) == 1){
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp);
+      }
       else {
         strcat(t->newStr, " ");
         temp[0] = ts[i];
@@ -156,14 +210,26 @@ TokenizerT *TKCreate( char * ts ) {
       }
     }
     else if (getState(prev) == 1 && getState(ts[i]) == 3){
-      strcat(t->newStr, " ");
-      temp[0] = ts[i];
-      temp[1] = 0;
-      strcat(t->newStr, temp); 
+      if ((prev == 'e' || prev == 'E') && (ts[i] == '+' || ts[i] == '-') && (hasDot(ts, i) == 1)){
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp);
+      }
+      else {
+        strcat(t->newStr, " ");
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp); 
+      }
     }
     else if (getState(prev) == 2 && getState(ts[i]) == 1){
       if (prev == '0'){
         if (ts[i] == 'x' || ts[i] == 'X'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (isHex(ts[i]) == 1 && has0x(ts, i) == 1){
           temp[0] = ts[i];
           temp[1] = 0;
           strcat(t->newStr, temp);
@@ -193,6 +259,11 @@ TokenizerT *TKCreate( char * ts ) {
         }
         */
       }
+      else if (isHex(ts[i]) == 1 && has0x(ts, i) == 1){
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp);
+      }
       else {
         strcat(t->newStr, " ");
         temp[0] = ts[i];
@@ -214,13 +285,35 @@ TokenizerT *TKCreate( char * ts ) {
       }
     }
     else if (getState(prev) == 3 && getState(ts[i]) == 1){
-      strcat(t->newStr, " ");
-      temp[0] = ts[i];
-      temp[1] = 0;
-      strcat(t->newStr, temp); 
+      if (prev == '.' && (ts[i] == 'e' || ts[i] == 'E')){
+        if(i > 1 && getState(ts[i-2]) == 2){
+          printf("in here\n");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else {
+        strcat(t->newStr, " ");
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp); 
+      }
     }
     else if (getState(prev) == 3 && getState(ts[i]) == 2){
-      if (prev == '.'){
+      if ((prev == '+' || prev == '-') && (hasDot(ts, i) == 1)){
+        //printf("number after plus or minus\n");
+        temp[0] = ts[i];
+        temp[1] = 0;
+        strcat(t->newStr, temp);
+      }
+      else if (prev == '.'){
         temp[0] = ts[i];
         temp[1] = 0;
         strcat(t->newStr, temp);
@@ -250,6 +343,296 @@ TokenizerT *TKCreate( char * ts ) {
       temp[1] = 0;
       strcat(t->newStr, temp); 
     }
+    else if (getState(prev) == 3 && getState(ts[i]) == 3){
+      // both operators
+      if (prev == '+'){
+        if (ts[i] == '+'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '-'){
+        if (ts[i] == '-'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '>'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '&'){
+        if (ts[i] == '&'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '%'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '*'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '^'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '!'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '|'){
+        if (ts[i] == '|'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '/'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '<'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '<'){
+          if (i > 1){
+            if (ts[i-2] == '<'){
+              strcat(t->newStr, " ");
+              temp[0] = ts[i];
+              temp[1] = 0;
+              strcat(t->newStr, temp);
+            }
+            else {
+              temp[0] = ts[i];
+              temp[1] = 0;
+              strcat(t->newStr, temp);
+            }
+          }
+          else {
+             temp[0] = ts[i];
+             temp[1] = 0;
+             strcat(t->newStr, temp);
+          }
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '>'){
+        if (ts[i] == '='){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else if (ts[i] == '>'){
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp);
+        }
+        else {
+          strcat(t->newStr, " ");
+          temp[0] = ts[i];
+          temp[1] = 0;
+          strcat(t->newStr, temp); 
+        }
+      }
+      else if (prev == '='){
+        if (i > 1 && ts[i] == '='){
+          if (ts[i-2] == '+'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '-'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '*'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '/'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '%'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '<'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '>'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '&'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '|'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '^'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else if (ts[i-2] == '!'){
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+          else {
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp);
+          }
+        }
+        else {
+          if (ts[i] == '='){
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp);
+          }
+          else {
+            strcat(t->newStr, " ");
+            temp[0] = ts[i];
+            temp[1] = 0;
+            strcat(t->newStr, temp); 
+          }
+        }
+      }
+      else {
+         strcat(t->newStr, " ");
+         temp[0] = ts[i];
+         temp[1] = 0;
+         strcat(t->newStr, temp); 
+      }
+    }
     else {
       temp[0] = ts[i];
       temp[1] = 0;
@@ -259,7 +642,7 @@ TokenizerT *TKCreate( char * ts ) {
     printf("%s\n", t->newStr);
   }
 
-//  printf("should be more than 9 %d\n", 2 * strlen(t->newStr));
+//  printf("%d\n", strlen(t->newStr));
 
   numEntries = 2 * strlen(t->newStr);
   t->arr = malloc(sizeof(char *) * numEntries);
@@ -269,12 +652,6 @@ TokenizerT *TKCreate( char * ts ) {
 
   t->index = 0;
   t->numTokens = 0;
-  /*
-  t->arr = malloc(sizeof(char*) * strlen(t->newStr));
-  for (i = 0; i < 200; i++){
-    t->arr[i] = malloc(strlen(t->newStr) * 2);
-  }
-  */
 
   char * pch;
   pch = strtok(t->newStr, " ");
@@ -317,7 +694,7 @@ int isOctal(char c){
 }
 
 int isHex(char c){
-  if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9' || c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E' || c == 'F'){
+  if (c == '0' || c == '1' || c == '2' || c == '3' || c == '4' || c == '5' || c == '6' || c == '7' || c == '8' || c == '9' || c == 'A' || c == 'B' || c == 'C' || c == 'D' || c == 'E' || c == 'F' || c == 'a' || c == 'b' || c == 'c' || c == 'd' || c == 'e' || c == 'f'){
     return 1;
   }
   return 0;
@@ -463,6 +840,12 @@ char * identify(char * token){
   if (strcmp(token, ",") == 0){
     return "comma ";
   }
+  if (strcmp(token, "^") == 0){
+    return "bitwise xor ";
+  }
+  if (strcmp(token, "=") == 0){
+    return "equals ";
+  }
 
   for (i = 0; i < strlen(token); i++){
     if (token[i] == '.'){
@@ -509,7 +892,7 @@ char * identify(char * token){
     if (numDots == 1){
       if (numE == 1){
         if (plusMinus < 2){
-          if (dotIndex + 1 < EIndex){
+          if (dotIndex < EIndex){
             return "float constant ";
           }
         }
@@ -519,6 +902,15 @@ char * identify(char * token){
   if (allFloat1 == 1){
     if (numDots == 1){
       if (numE == 0){
+        if (plusMinus < 2){
+          return "float constant ";
+        }
+      }
+    }
+  }
+  if (allFloat1 == 1){
+    if (numE == 1){
+      if (numDots == 1){
         if (plusMinus < 2){
           return "float constant ";
         }
@@ -545,6 +937,7 @@ void TKDestroy( TokenizerT * tk ) {
     free(tk->arr[i]);
   }
   free(tk->arr);
+  free(tk->newStr);
 }
 
 /*
@@ -560,15 +953,9 @@ void TKDestroy( TokenizerT * tk ) {
  */
 
 char *TKGetNextToken( TokenizerT * tk ) {
-//  int i;
   char * ret;
   ret = malloc(sizeof(char) * strlen(tk->newStr) + 50);
   strcpy(ret, "");
-//  tk->arr = malloc(sizeof(char *) * strlen(tk->newStr));
-//  tk->arr = malloc(200);
-//  for (i = 0; i < tk->numTokens; i++){
-//    tk->arr[i] = malloc(sizeof(char) * strlen(tk->newStr));
-// }
 //  printf("%d %d\n", tk->index, tk->numTokens);
   if (tk->index >= tk->numTokens){
     return NULL;
@@ -589,14 +976,6 @@ char *TKGetNextToken( TokenizerT * tk ) {
   return NULL;
 }
 
-void TKGetNextToken1( TokenizerT * tk ) {
-  char * pch;
-  pch = strtok(tk->newStr, " ");
-  while (pch != NULL){
-    printf("%s \"%s\"\n", identify(pch), pch);
-    pch = strtok(NULL, " ");
-  }
-}
 
 /*
  * main will have a string argument (in argv[1]).
@@ -620,11 +999,9 @@ int main(int argc, char **argv) {
   printf("orig %s\n", orig);
   TokenizerT * t = TKCreate(orig);
   for (i = 0; i < t->numTokens; i++){
-//  for (i = 0; i < sizeof(t->arr); i++){
     printf("%s\n",t->arr[i]);
   }
 //  printf("%s\n", t->newStr);
-//  TKGetNextToken1(t);
   char * charPtr = NULL;
   while ((charPtr = TKGetNextToken(t)) != NULL){
 //    printf("%s %s\n", identify(charPtr), charPtr);
@@ -632,6 +1009,5 @@ int main(int argc, char **argv) {
     free(charPtr);
   }
   TKDestroy(t);
-//  printf("%d\n", hasDot("5.2345e10", 6));
   return 0;
 }
